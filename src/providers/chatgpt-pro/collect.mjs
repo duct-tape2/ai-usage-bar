@@ -124,9 +124,19 @@ async function getToken(ctx, { forceRefresh = false } = {}) {
   return refreshToken(ctx);
 }
 
+// The session token belongs to a browser session, and OpenAI's edge answers a
+// non-browser User-Agent with an HTML challenge page (which this project
+// classifies as rate limiting). Present the request the way the browser that
+// owns the token would, on this adapter only.
+const BROWSER_HEADERS = {
+  accept: "application/json",
+  "accept-language": "en-US,en;q=0.9",
+  "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+};
+
 function api(ctx, token, path) {
   return ctx.http.getJson(ORIGIN + path, {
-    headers: { authorization: `Bearer ${token}`, referer: `${ORIGIN}/` },
+    headers: { ...BROWSER_HEADERS, authorization: `Bearer ${token}`, referer: `${ORIGIN}/` },
     timeoutMs: 20_000,
   });
 }

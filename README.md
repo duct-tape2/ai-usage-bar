@@ -1,21 +1,43 @@
 # AI Usage Bar
 
-**A self-hosted dashboard for how much of your AI subscriptions is left — that you open on your phone.**
-Not a menu bar app.
+**A self-hosted web dashboard that shows how much of each AI subscription you have left, on any device.**
+Not a menu bar app: it runs as a small server on one machine that stays on, and you open it from your phone.
+
+[![ci](https://github.com/duct-tape2/ai-usage-bar/actions/workflows/ci.yml/badge.svg)](https://github.com/duct-tape2/ai-usage-bar/actions/workflows/ci.yml)
+![node](https://img.shields.io/badge/node-%3E%3D20-339933)
+![deps](https://img.shields.io/badge/dependencies-0-blue)
+![license](https://img.shields.io/badge/license-MIT-green)
+
+<p>
+  <img src="docs/screenshots/desktop.png" alt="AI Usage Bar on a desktop browser: Claude 5h, Codex weekly, Claude weekly, Cursor plan, each with remaining percent, reset time and where the number came from" width="100%">
+</p>
+<p>
+  <img src="docs/screenshots/phone.png" alt="The same dashboard on a phone" width="320">
+</p>
 
 ```
-Codex     weekly    1% left   resets in 26m   [local file]
-Claude    5h       86% left   resets in 2h 1m [vendor API]
-Claude    weekly   86% left   resets in 4d    [vendor API]
+Codex     weekly    99% left   resets in 6d 17h  [local file]
+Claude    5h        33% left   resets in 22m     [vendor API]
+Claude    weekly    72% left   resets in 4d 4h   [vendor API]
+Cursor    plan      63% left   resets in 10d 21h [vendor API]
 ```
 
-There are a lot of good tools that tell you what you *spent*. This one answers the
-question you actually ask at 2am: **can I keep going, or did I just burn the week's
-quota?** — and it answers it from your phone, your tablet, or any other machine,
-because it runs as a small server instead of an icon in your menu bar.
+There are plenty of tools that tell you what you *spent*. This one answers the question
+you actually ask before starting work: **can I keep going, or did I just burn the week's
+quota, and on which plan?** It answers it from your phone, your tablet, or any other
+machine, because it runs as a small server instead of an icon in your menu bar.
 
-> **Status: early.** Codex, Claude and Cursor are verified working. ChatGPT Pro
-> ships as experimental (see the table). Grok is not written yet. Interfaces may
+**What it reads and what it never sends.** Adapters read the numbers where the vendor's
+own app already keeps them (a local file, or the vendor's API using the credential their
+app stored on this machine). Nothing is proxied through anyone else's server, there is
+no telemetry, and every meter shows which of those sources it came from. Details in
+[SECURITY.md](SECURITY.md) and [RISKS.md](RISKS.md).
+
+> **Status: early (0.1.0-dev).** Codex, Claude and Cursor are verified on a clean clone
+> (CI runs a no-accounts boot test on Ubuntu and macOS). The ChatGPT Pro weekly counter is
+> experimental and off by default; on 2026-09-07 the packaged adapter was run end to end
+> against one real Pro account and counted 26 responses, the same figure as the
+> maintainer's independent counter. Grok is not in the public version yet. Interfaces may
 > still change.
 
 ## Why another one of these
@@ -23,7 +45,7 @@ because it runs as a small server instead of an icon in your menu bar.
 The space is crowded, but almost entirely with macOS menu bar apps and CLI cost
 trackers. They are good at what they do and this project does not compete with them.
 
-What none of them do:
+What I could not find in any of them (checked 2026-09, corrections welcome):
 
 | | menu bar apps | cost CLIs | AI Usage Bar |
 |---|---|---|---|
@@ -32,7 +54,7 @@ What none of them do:
 | Runs headless on a NAS / server | no | partly | **yes** |
 | Survives the laptop going to sleep | no | no | **yes** |
 | Says where each number came from | no | no | **yes** |
-| Consumer ChatGPT Pro weekly cap | no | no | **yes, experimental — nobody else has it** |
+| Consumer ChatGPT Pro weekly cap | no | no | **experimental** (I could not find another tool that counts it) |
 
 If you want a menu bar app, use one — they are excellent. If you want the number on
 your phone's home screen while the collector runs on a machine that never sleeps,
@@ -140,8 +162,8 @@ without a read token**. That is deliberate: the number of self-hosted dashboards
 quietly serving personal data to a whole network is not a club worth joining.
 
 ```bash
-ai-usage-bar token read --new          # prints a token, stores it 0600
-ai-usage-bar serve --expose tailscale  # binds your tailnet address
+node bin/ai-usage-bar.mjs token read --new          # prints a token, stores it 0600
+node bin/ai-usage-bar.mjs serve --expose tailscale  # binds your tailnet address
 ```
 
 Then, for a real HTTPS certificate and no self-signed-certificate pain on iOS
@@ -151,7 +173,12 @@ Then, for a real HTTPS certificate and no self-signed-certificate pain on iOS
 tailscale serve --bg --https=8443 http://127.0.0.1:8791
 ```
 
-Use a port your dashboard is **not** already listening on. Pointing `tailscale serve`
+Use a port your dashboard is **not** already listening on.
+
+**No Tailscale?** Bind your LAN address instead: `node bin/ai-usage-bar.mjs serve --host 192.168.1.20`
+(still refuses without a read token). Open `http://192.168.1.20:8791/?token=<token>` once on
+the phone; the token is then kept in a cookie for that browser. Put a reverse proxy with TLS in
+front if the network is not yours. Pointing `tailscale serve`
 at the same port the server binds makes the tailnet address stop answering plain
 HTTP, which looks exactly like the server being down.
 
@@ -175,21 +202,35 @@ them — **this matters, please read it.**
 
 ## Providers
 
+The collector reads each provider on the machine where that provider's app is signed in.
+Installing on an empty home server shows nothing until that machine has the files below.
+
+| Provider | Needs on the collector machine | OS |
+|---|---|---|
+| Codex | The Codex CLI signed in (`~/.codex/sessions/` rollout files) | macOS, Linux |
+| Claude Code | Claude Code signed in (its stored OAuth credential) | macOS (Keychain), Linux (credentials file) |
+| Cursor | Cursor desktop signed in (its local state database) | macOS, Linux |
+| ChatGPT Pro | A chatgpt.com session token, supplied once (see RISKS.md) | any |
+
+
 | Provider | Tier | How | Status |
 |---|---|---|---|
 | Codex | `local-file` | The rate limits the Codex CLI already records in its own session files | working |
 | Claude (Pro/Max) | `vendor-api` | The OAuth credential Claude Code stored here, against Anthropic's usage endpoint | working |
 | Cursor | `vendor-api` | The token Cursor stored in its own local database | working |
 | ChatGPT Pro weekly | `session-scrape` | Counts Pro responses in your own account history, so usage from your phone counts too | **experimental** |
-| Grok | `vendor-api` | The credential the Grok CLI stored here | not written yet |
+| Grok | `vendor-api` | The credential the Grok CLI stored here | not in the public version yet |
 
-**On ChatGPT Pro.** This is the number no other dashboard shows, and it is the
-reason this project exists. It is marked experimental for an honest reason: the
-counting logic has been running in production against a real Pro account for
-days, but the packaged adapter has not yet completed a clean end-to-end run here
-— OpenAI's bot protection answered the verification attempt with a challenge
-page. If that happens to you, the adapter reports `rate_limited` and backs off
-rather than pretending. It is off by default; read [RISKS.md](RISKS.md) first.
+**On ChatGPT Pro.** This is the number that made me build the project. It stays marked
+experimental because it is a count of your own account history (session-scrape tier), not
+a figure OpenAI publishes, and it has been verified against one account only: on
+2026-09-07 the packaged adapter was run end to end with a real Pro session token and
+counted 26 responses for the week, matching an independent counter on the same account.
+The request has to look like the browser that owns the token; a generic client gets a
+challenge page from OpenAI's edge, which the adapter reports as `rate_limited` and backs
+off from rather than pretending. Long agentic conversations are attributed to the question
+that asked, so a 500-node tool session counts as the handful of prompts it really was. It
+is off by default; read [RISKS.md](RISKS.md) first.
 
 Adding one is roughly thirty lines — see [docs/adapter-sdk.md](docs/adapter-sdk.md).
 Provider breakage is the thing that kills projects like this, so the adapter surface
@@ -197,8 +238,9 @@ is deliberately small enough that you do not have to wait for a maintainer.
 
 ## Privacy
 
-- Everything stays on your machine. There is no telemetry, no hosted component, and
-  nothing is ever proxied through anyone else's server.
+- Nothing is proxied through anyone else's server and there is no telemetry or hosted
+  component. Adapters do talk to the vendors' own APIs (Anthropic, Cursor, and OpenAI if
+  you enable the experimental counter), the same endpoints their apps already call.
 - Credentials are never copied into this project's config; adapters read the ones
   the vendors' own apps already stored, and never hold a refresh token.
 - What leaves the process is an allowlist, not a denylist: a meter may only carry
