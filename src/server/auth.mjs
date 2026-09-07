@@ -46,13 +46,33 @@ function constantTimeEquals(a, b) {
   return provided.length === expected.length && timingSafeEqual(provided, expected);
 }
 
+export const READ_COOKIE = "ai_usage_bar_read";
+
+function cookieValue(req, name) {
+  const raw = String(req.headers.cookie || "");
+  for (const part of raw.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
+  }
+  return "";
+}
+
 function presentedToken(req, url) {
   const header = String(req.headers.authorization || "");
   if (header.startsWith("Bearer ")) return header.slice(7).trim();
   // Widget hosts (KWGT, Widgy, some Shortcuts actions) cannot set headers.
   // Accepted for reads only, and query strings are never logged.
   const query = url?.searchParams?.get("token");
-  return query ? query.trim() : "";
+  if (query) return query.trim();
+  // A phone opens /?token=... once; the cookie minted for that visit carries
+  // the token on every request the page itself makes afterwards.
+  return cookieValue(req, READ_COOKIE);
+}
+
+function isSecure(req) {
+  if (req.socket?.encrypted) return true;
+  return String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim() === "https";
 }
 
 export function isLoopback(req) {
@@ -75,6 +95,17 @@ export function makeAuth({ writeToken, readToken, trustLoopback = true }) {
       if (!readToken) return true;
       if (trustLoopback && isLoopback(req)) return true;
       return constantTimeEquals(presentedToken(req, url), readToken);
+    },
+    /**
+     * The Set-Cookie value to attach when this request proved the read token
+     * through the query string, so the dashboard's own fetches work without
+     * the token in the address bar. Null when nothing should be set.
+     */
+    readCookieFor(req, url) {
+      if (!readToken) return null;
+      const query = url?.searchParams?.get("token");
+      if (!query || !constantTimeEquals(query.trim(), readToken)) return null;
+      return `${READ_COOKIE}=${readToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000${isSecure(req) ? "; Secure" : ""}`;
     },
     readTokenConfigured: Boolean(readToken),
     writeTokenConfigured: Boolean(writeToken),

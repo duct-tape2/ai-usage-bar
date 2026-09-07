@@ -49,7 +49,7 @@ function etagFor(text) {
 }
 
 /** Serves the static dashboard. Whitelisted by resolved path, never by string prefix. */
-async function serveStatic(req, res, pathname) {
+async function serveStatic(req, res, pathname, extra = {}) {
   const rel = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
   const resolved = normalize(join(WEB_DIR, rel));
   if (resolved !== WEB_DIR && !resolved.startsWith(WEB_DIR + sep)) return send(res, 403, "forbidden");
@@ -68,7 +68,7 @@ async function serveStatic(req, res, pathname) {
     return res.end();
   }
   const body = await readFile(resolved);
-  res.writeHead(200, {
+  res.writeHead(200, { ...extra, 
     "content-type": TYPES[extname(resolved)] || "application/octet-stream",
     "cache-control": "no-cache",
     etag: tag,
@@ -125,6 +125,8 @@ export function createServer({ config, manifests, auth, activeIds, scheduler, lo
     if (req.method !== "GET" && req.method !== "HEAD") return sendJson(res, { error: "not found" }, 404);
 
     if (!auth.canRead(req, url)) return sendJson(res, { error: "unauthorized" }, 401);
+    const cookie = auth.readCookieFor?.(req, url);
+    const extra = cookie ? { "set-cookie": cookie } : {};
 
     if (pathname === "/api/usage") {
       const snapshot = await readSnapshot();
@@ -163,7 +165,7 @@ export function createServer({ config, manifests, auth, activeIds, scheduler, lo
     }
 
     if (pathname.startsWith("/api/")) return sendJson(res, { error: "not found" }, 404);
-    return serveStatic(req, res, pathname);
+    return serveStatic(req, res, pathname, extra);
   }
 
   return http.createServer((req, res) => {
