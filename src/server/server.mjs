@@ -8,7 +8,7 @@
 import http from "node:http";
 import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
-import { join, normalize, extname } from "node:path";
+import { join, normalize, extname, sep } from "node:path";
 import { WEB_DIR } from "../core/paths.mjs";
 import { readSnapshot, putProvider } from "./store.mjs";
 import { buildHealth } from "./health.mjs";
@@ -52,7 +52,7 @@ function etagFor(text) {
 async function serveStatic(req, res, pathname) {
   const rel = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
   const resolved = normalize(join(WEB_DIR, rel));
-  if (!resolved.startsWith(WEB_DIR)) return send(res, 403, "forbidden");
+  if (resolved !== WEB_DIR && !resolved.startsWith(WEB_DIR + sep)) return send(res, 403, "forbidden");
 
   let info;
   try {

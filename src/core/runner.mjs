@@ -70,10 +70,19 @@ export async function runProvider(manifest, config, { log, persist = true, snaps
   let error = null;
   try {
     const ctx = await createContext(manifest, config, { log });
-    result = await Promise.race([
-      manifest.collect(ctx),
-      new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error("collect timed out"), { code: "timeout" })), timeoutMs)),
-    ]);
+    // The timer is cleared once collect settles; otherwise a finished CLI run
+    // would sit for the whole timeout with nothing left to do.
+    let timer;
+    try {
+      result = await Promise.race([
+        manifest.collect(ctx),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(Object.assign(new Error("collect timed out"), { code: "timeout" })), timeoutMs);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
     if (!result || typeof result !== "object" || typeof result.meters !== "object") {
       error = "schema_changed";
       log?.(`${manifest.id}.bad_result`, {});

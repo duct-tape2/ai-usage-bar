@@ -142,7 +142,7 @@ export function normalizeProviderResult({ manifest, result, config, thresholds, 
       // is indistinguishable from "you have used nothing", which is worse.
       const last = previous?.find((m) => m.meterKey === meterKey);
       meters.push(normalizeMeter(
-        last ? { used: last.used, total: last.total, remaining: last.remaining, unit: last.unit, currency: last.currency, detail: last.detail } : {},
+        last ? { used: last.used, total: last.total, remaining: last.remaining, unit: last.unit, currency: last.currency, detail: last.detail, window: last.window } : {},
         { manifest, meterKey, meterDef, config, thresholds, capturedAt, error: error || "no_data", stale: true },
       ));
       continue;

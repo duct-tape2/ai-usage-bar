@@ -72,3 +72,16 @@ test("dynamic meters stay absent until the provider actually reports them", () =
   assert.equal(meters.some((m) => m.meterKey === "bonus"), false);
   assert.equal(meters.some((m) => m.meterKey === "spend"), true, "non-dynamic meters always appear so widgets never branch on a missing key");
 });
+
+test("a transient failure keeps the last known reset time, not just the numbers", () => {
+  const manifest = { id: "p", vendor: "v", meters: { fiveHour: { unit: "percent", window: { kind: "rolling", seconds: 18000 } } } };
+  const previous = [{
+    meterKey: "fiveHour", used: 40, total: 100, remaining: 60, unit: "percent",
+    window: { kind: "rolling", seconds: 18000, resetAt: "2026-09-07T05:00:00.000Z", resetSource: "reported" },
+  }];
+  const [m] = normalizeProviderResult({ manifest, result: null, config: {}, thresholds: { warn: 0.75, critical: 0.9 }, capturedAt: "2026-09-07T04:00:00.000Z", error: "network", previous });
+  assert.equal(m.stale, true);
+  assert.equal(m.remaining, 60);
+  assert.equal(m.window.resetAt, "2026-09-07T05:00:00.000Z");
+  assert.equal(m.window.resetSource, "reported");
+});
