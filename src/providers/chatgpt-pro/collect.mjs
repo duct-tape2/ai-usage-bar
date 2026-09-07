@@ -40,7 +40,7 @@ function reduceList(json) {
  * quota once per user turn is what matches how the allowance is actually
  * spent.
  */
-function reduceConversation(json, proSlugs) {
+export function reduceConversation(json, proSlugs) {
   const mapping = (json && json.mapping) || {};
   const timeOf = (node) => {
     const message = node && node.message;
@@ -58,10 +58,18 @@ function reduceConversation(json, proSlugs) {
     const slug = (message.metadata && message.metadata.model_slug) || "";
     if (proSlugs.indexOf(slug) === -1) continue;
 
-    let key = id;
+    // An agentic Pro turn can put well over a hundred tool and thought nodes
+    // between the answer and the question that asked for it, so the walk up
+    // is bounded by a visited set rather than a hop count. A hop count silently
+    // turned every deep node into its own "request" and inflated the week by
+    // 10x on real conversations. A node with no user ancestor is not a
+    // request and is skipped.
+    let key = null;
     let when = timeOf(node);
     let cursor = node;
-    for (let i = 0; i < 60 && cursor && cursor.parent; i++) {
+    const seen = new Set();
+    while (cursor && cursor.parent && !seen.has(cursor.parent)) {
+      seen.add(cursor.parent);
       const parent = mapping[cursor.parent];
       if (!parent) break;
       const parentMessage = parent.message;
@@ -72,7 +80,7 @@ function reduceConversation(json, proSlugs) {
       }
       cursor = parent;
     }
-    if (!when) continue;
+    if (!key || !when) continue;
     if (!turns[key] || when < turns[key]) turns[key] = when;
   }
   return Object.keys(turns).map((key) => [key, turns[key]]);
