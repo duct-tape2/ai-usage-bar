@@ -81,23 +81,44 @@ function deepFind(value, key, depth = 0) {
   return null;
 }
 
-function windowMeter(window) {
+/**
+ * A rollout file is a snapshot from the last Codex turn, so the reset it
+ * reports can already be in the past. Showing "1% left, almost out" for a
+ * window that has since rolled over is the one wrong answer this project
+ * must never give, so a lapsed window is reported as fresh (0% used) with
+ * the reset rolled forward and the confidence lowered to "estimate".
+ */
+export function windowMeter(window, now = Date.now()) {
   if (!window || typeof window !== "object") return null;
   const usedPercent = Number(window.used_percent);
   if (!Number.isFinite(usedPercent)) return null;
   const resetsAt = Number(window.resets_at);
   const minutes = Number(window.window_minutes);
+  const seconds = Number.isFinite(minutes) && minutes > 0 ? minutes * 60 : null;
+  let resetMs = Number.isFinite(resetsAt) && resetsAt > 0 ? resetsAt * 1000 : null;
+  let used = usedPercent;
+  let confidence = "exact";
+  if (resetMs !== null && resetMs <= now) {
+    used = 0;
+    confidence = "estimate";
+    if (seconds) {
+      const lapsed = Math.floor((now - resetMs) / (seconds * 1000)) + 1;
+      resetMs += lapsed * seconds * 1000;
+    } else {
+      resetMs = null;
+    }
+  }
   return {
     unit: "percent",
-    used: usedPercent,
+    used,
     total: 100,
-    confidence: "exact",
+    confidence,
     method: "codex-rollout-file",
     window: {
       kind: "rolling",
-      seconds: Number.isFinite(minutes) && minutes > 0 ? minutes * 60 : null,
-      resetAt: Number.isFinite(resetsAt) && resetsAt > 0 ? new Date(resetsAt * 1000).toISOString() : null,
-      resetSource: "reported",
+      seconds,
+      resetAt: resetMs !== null ? new Date(resetMs).toISOString() : null,
+      resetSource: confidence === "exact" ? "reported" : "derived",
     },
   };
 }
