@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 // ai-usage-bar CLI
 
+const nodeVersion = process.versions.node.split(".").map(Number);
+if (nodeVersion[0] < 20) {
+  console.error(`ai-usage-bar requires Node 20 or later. You are running Node ${process.versions.node}.`);
+  console.error(`Please upgrade Node.js from https://nodejs.org/`);
+  process.exit(1);
+}
+
 import { ensureDirs, describePaths, CONFIG_FILE } from "../src/core/paths.mjs";
 import { loadConfig, saveConfig, providerEnablement, providerConfig, DEFAULT_CONFIG } from "../src/core/config.mjs";
 import { loadRegistry } from "../src/core/registry.mjs";
@@ -220,12 +227,14 @@ const COMMANDS = { serve: cmdServe, doctor: cmdDoctor, token: cmdToken, collect:
 if (command === "help" || command === "--help" || command === "-h") {
   console.log(`ai-usage-bar - how much of your AI subscriptions is left
 
-  ai-usage-bar init                     write a starter config
-  ai-usage-bar doctor                   what this machine can read, and why not
-  ai-usage-bar serve [--port N]         run the dashboard (loopback by default)
-  ai-usage-bar serve --expose tailscale bind the tailnet address (needs a read token)
-  ai-usage-bar collect [--provider id]  run collectors once and print the result
-  ai-usage-bar token read --new         create a token for remote access
+  ai-usage-bar init                             write a starter config
+  ai-usage-bar doctor                           what this machine can read, and why not
+  ai-usage-bar serve [--port N]                 run the dashboard (127.0.0.1:8791 by default)
+  ai-usage-bar serve --host <addr>              bind a specific address (requires read token if not loopback)
+  ai-usage-bar serve --expose tailscale         bind tailnet address (requires read token)
+  ai-usage-bar serve --demo                     show demo data without any credentials
+  ai-usage-bar collect [--provider id]          run collectors once and print the result
+  ai-usage-bar token read --new                 create a token for remote access
 
 config: ${CONFIG_FILE}`);
   process.exit(0);
