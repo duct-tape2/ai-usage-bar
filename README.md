@@ -56,6 +56,83 @@ Once the npm package is published the same three commands work as
 `doctor` is the important one. It tells you, per provider, whether it is enabled,
 what it would read, and what is missing — instead of leaving you with a blank page.
 
+## Usage
+
+### Commands
+
+| Command | What it does |
+|---|---|
+| `init` | Writes `~/.config/ai-usage-bar/config.json` with every safe-tier provider enabled |
+| `doctor` | Per provider: enabled or not, which tier, what it would read, what is missing |
+| `serve [--port N]` | Runs the dashboard on `127.0.0.1:8791` (or `AI_USAGE_BAR_PORT`) |
+| `serve --expose tailscale` | Binds your tailnet address. Refuses without a read token |
+| `collect [--provider id]` | Runs the collectors once and prints the result, no server |
+| `token read --new` | Creates a read token (stored 0600) for phones and other machines |
+
+Provider ids: `codex`, `claude-code`, `cursor`, `chatgpt-pro`.
+
+### Configuration
+
+`init` writes the file; this is the whole shape of it:
+
+```json
+{
+  "server": { "port": 8791, "host": "127.0.0.1" },
+  "thresholds": { "warn": 0.75, "critical": 0.9 },
+  "allowTiers": ["official-api", "local-file", "vendor-api"],
+  "providers": {
+    "codex": { "enabled": true },
+    "claude-code": { "enabled": true },
+    "cursor": { "enabled": true },
+    "chatgpt-pro": { "enabled": false }
+  }
+}
+```
+
+A provider runs only when it is enabled **and** its tier is in `allowTiers`.
+`doctor` tells you which half is missing. `thresholds` is where a card turns
+amber and red.
+
+### Turning on the ChatGPT Pro weekly counter
+
+It is off by default because it reads your own account history through a borrowed
+session (`session-scrape`). Read [RISKS.md](RISKS.md), then:
+
+```json
+{
+  "allowTiers": ["official-api", "local-file", "vendor-api", "session-scrape"],
+  "providers": {
+    "chatgpt-pro": { "enabled": true, "proSlugs": ["gpt-6-pro"], "windowDays": 7 }
+  }
+}
+```
+
+`proSlugs` is the list of model slugs that count against the Pro cap; `windowDays`
+is the rolling window. The first run prints exactly what it is about to do.
+
+### Reading it from other tools
+
+Everything the page shows is available as JSON, so a menu bar app, a tmux status
+line or a home-screen widget can read the same numbers:
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/usage` | Every meter, with provenance and reset times |
+| `GET /api/summary` | The compact form a widget needs |
+| `GET /api/summary.txt` | One line, short enough for a menubar |
+| `GET /api/health` | Collector freshness; `ok: false` when something is stale |
+| `POST /api/refresh` | Run the collectors now |
+
+Remote reads send the token as `Authorization: Bearer <token>` (or `?token=` for
+clients that cannot set headers; it is never logged).
+
+### Keeping it running
+
+The collector should live on the machine that never sleeps. Templates with the
+two paths to edit are in [install/macos](install/macos) (launchd) and
+[install/linux](install/linux) (systemd user unit). Updating is `git pull`; there
+is no build step and nothing is written inside the checkout.
+
 ## Getting it on your phone
 
 The dashboard binds `127.0.0.1` by default and **refuses to bind anything else

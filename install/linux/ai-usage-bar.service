@@ -1,0 +1,17 @@
+# User unit. Edit WorkingDirectory, then:
+#   mkdir -p ~/.config/systemd/user
+#   cp install/linux/ai-usage-bar.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now ai-usage-bar
+#   loginctl enable-linger $USER   # keep it running when you log out
+[Unit]
+Description=AI Usage Bar - remaining AI subscription quota dashboard
+After=network-online.target
+
+[Service]
+WorkingDirectory=/PATH/TO/ai-usage-bar
+ExecStart=/usr/bin/env node bin/ai-usage-bar.mjs serve
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
