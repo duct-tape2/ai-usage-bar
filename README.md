@@ -64,15 +64,25 @@ that is this.
 
 Requires Node 20 or newer. No dependencies, no build step, no Docker required.
 
+### See it in 10 seconds
+
 ```bash
 git clone https://github.com/duct-tape2/ai-usage-bar.git
 cd ai-usage-bar
+node bin/ai-usage-bar.mjs serve --demo  # see fixture data, no setup needed
+```
+
+Then open `http://127.0.0.1:8791` in your browser.
+
+### Set it up
+
+```bash
 node bin/ai-usage-bar.mjs init      # write a starter config
 node bin/ai-usage-bar.mjs doctor    # what this machine can read, and why not
 node bin/ai-usage-bar.mjs serve     # http://127.0.0.1:8791
 ```
 
-Once the npm package is published the same three commands work as
+Once the npm package is published the same commands work as
 `npx ai-usage-bar init|doctor|serve` (not published yet).
 
 `doctor` is the important one. It tells you, per provider, whether it is enabled,
@@ -199,6 +209,13 @@ a number you have to trust blindly.
 The last two ship in the box but stay off until you turn them on in config, and the
 first run prints what you are agreeing to. See [RISKS.md](RISKS.md) before enabling
 them — **this matters, please read it.**
+
+### Data freshness
+
+The dashboard marks data as stale when it hasn't been updated in more than 2.5 times a
+provider's polling interval (minimum 120 seconds). This gives collectors time to run even
+if one poll takes longer than usual. If data is missing or has an error, it also shows as
+stale. The `/api/health` endpoint reports freshness per provider.
 
 ## Providers
 
