@@ -4,8 +4,12 @@
   "description": "Self-hosted dashboard for how much of your AI subscriptions is left. Open it on your phone.",
   "type": "module",
   "license": "MIT",
-  "engines": { "node": ">=20" },
-  "bin": { "ai-usage-bar": "bin/ai-usage-bar.mjs" },
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "ai-usage-bar": "bin/ai-usage-bar.mjs"
+  },
   "scripts": {
     "start": "node bin/ai-usage-bar.mjs serve",
     "doctor": "node bin/ai-usage-bar.mjs doctor",
@@ -13,10 +17,36 @@
     "scrub": "node scripts/scrub-check.mjs",
     "check": "npm run scrub && npm test"
   },
-  "files": ["bin/", "src/", "web/", "install/", "docs/", "README.md", "LICENSE"],
-  "keywords": [
-    "ai", "usage", "quota", "dashboard", "self-hosted", "claude-code",
-    "codex", "cursor", "grok", "chatgpt", "rate-limit", "pwa"
+  "files": [
+    "bin/",
+    "src/",
+    "web/",
+    "install/",
+    "docs/",
+    "README.md",
+    "LICENSE"
   ],
-  "dependencies": {}
+  "keywords": [
+    "ai",
+    "usage",
+    "quota",
+    "dashboard",
+    "self-hosted",
+    "claude-code",
+    "codex",
+    "cursor",
+    "grok",
+    "chatgpt",
+    "rate-limit",
+    "pwa"
+  ],
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/duct-tape2/ai-usage-bar.git"
+  },
+  "homepage": "https://github.com/duct-tape2/ai-usage-bar#readme",
+  "bugs": {
+    "url": "https://github.com/duct-tape2/ai-usage-bar/issues"
+  }
 }

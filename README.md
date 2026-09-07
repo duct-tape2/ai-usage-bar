@@ -43,10 +43,15 @@ that is this.
 Requires Node 20 or newer. No dependencies, no build step, no Docker required.
 
 ```bash
-npx ai-usage-bar init      # write a starter config
-npx ai-usage-bar doctor    # what this machine can read, and why not
-npx ai-usage-bar serve     # http://127.0.0.1:8791
+git clone https://github.com/duct-tape2/ai-usage-bar.git
+cd ai-usage-bar
+node bin/ai-usage-bar.mjs init      # write a starter config
+node bin/ai-usage-bar.mjs doctor    # what this machine can read, and why not
+node bin/ai-usage-bar.mjs serve     # http://127.0.0.1:8791
 ```
+
+Once the npm package is published the same three commands work as
+`npx ai-usage-bar init|doctor|serve` (not published yet).
 
 `doctor` is the important one. It tells you, per provider, whether it is enabled,
 what it would read, and what is missing — instead of leaving you with a blank page.

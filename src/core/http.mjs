@@ -40,7 +40,7 @@ function assertSameOrigin(from, to) {
 }
 
 export function createHttp({ userAgent, log } = {}) {
-  const ua = userAgent || "ai-usage-bar (+https://github.com/ai-usage-bar)";
+  const ua = userAgent || "ai-usage-bar (+https://github.com/duct-tape2/ai-usage-bar)";
 
   async function request(url, { method = "GET", headers = {}, body, timeoutMs = DEFAULT_TIMEOUT_MS, accept = "application/json" } = {}) {
     const controller = new AbortController();
