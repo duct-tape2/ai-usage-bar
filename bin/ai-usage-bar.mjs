@@ -12,6 +12,7 @@ import { readSnapshot } from "../src/server/store.mjs";
 import { buildHealth } from "../src/server/health.mjs";
 import { getPlatform } from "../src/platform/index.mjs";
 import { SAFE_TIERS } from "../src/core/schema.mjs";
+import { createDemoSnapshot } from "../src/server/demo.mjs";
 
 const argv = process.argv.slice(2);
 const command = argv[0] || "help";
@@ -82,7 +83,11 @@ function activeManifests(config, manifests) {
 }
 
 async function cmdServe() {
-  const { config, manifests, errors } = await loadEverything();
+  const isDemo = argv.includes("--demo");
+
+  const { config, manifests, errors } = isDemo
+    ? { config: DEFAULT_CONFIG, manifests: await (await loadRegistry(DEFAULT_CONFIG)).manifests, errors: [] }
+    : await loadEverything();
   for (const error of errors) log("registry.error", error);
 
   const exposeHost = await resolveExposeHost(flag("expose"));
@@ -92,11 +97,11 @@ async function cmdServe() {
   const [writeToken, readToken] = await Promise.all([loadToken("write"), loadToken("read")]);
   assertExposureAllowed(host, readToken);
 
-  const active = activeManifests(config, manifests);
+  const active = isDemo ? manifests.filter((m) => ["codex", "claude-code", "cursor", "chatgpt-pro"].includes(m.id)) : activeManifests(config, manifests);
   const activeIds = new Set(active.map((m) => m.id));
   const auth = makeAuth({ writeToken, readToken });
 
-  const scheduler = createScheduler({ manifests: active, config, runProvider, log });
+  const scheduler = isDemo ? null : createScheduler({ manifests: active, config, runProvider, log });
   const server = createServer({ config, manifests, auth, activeIds, scheduler, log });
 
   try {
@@ -106,16 +111,31 @@ async function cmdServe() {
     process.exit(1);
   }
 
-  scheduler.start();
+  if (isDemo) {
+    // Pre-populate snapshot with demo data instead of running collectors
+    const { putProvider } = await import("../src/server/store.mjs");
+    const demoSnapshot = createDemoSnapshot();
+    for (const [providerId, providerData] of Object.entries(demoSnapshot.providers || {})) {
+      await putProvider(providerId, {
+        meters: providerData.meters,
+        error: providerData.error,
+        capturedAt: providerData.capturedAt,
+      });
+    }
+  } else {
+    scheduler.start();
+  }
+
   log("listening", {
     url: `http://${host}:${port}/`,
     providers: active.map((m) => m.id),
     readAuth: auth.readTokenConfigured ? "token" : "open",
+    demo: isDemo ? true : undefined,
   });
   if (!active.length) log("no_providers", { hint: "run: ai-usage-bar doctor" });
 
   for (const signal of ["SIGINT", "SIGTERM"]) {
-    process.on(signal, () => { scheduler.stop(); server.close(() => process.exit(0)); });
+    process.on(signal, () => { scheduler?.stop(); server.close(() => process.exit(0)); });
   }
 }
 
