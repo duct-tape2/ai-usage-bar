@@ -1,0 +1,6 @@
+#!/bin/sh
+# Blocks a commit that would publish personal data.
+node "$(git rev-parse --show-toplevel)/scripts/scrub-check.mjs" || {
+  echo "commit blocked by scrub-check" >&2
+  exit 1
+}

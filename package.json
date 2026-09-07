@@ -1,0 +1,22 @@
+{
+  "name": "ai-usage-bar",
+  "version": "0.1.0-dev",
+  "description": "Self-hosted dashboard for how much of your AI subscriptions is left. Open it on your phone.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "bin": { "ai-usage-bar": "bin/ai-usage-bar.mjs" },
+  "scripts": {
+    "start": "node bin/ai-usage-bar.mjs serve",
+    "doctor": "node bin/ai-usage-bar.mjs doctor",
+    "test": "node --test test/*.test.mjs",
+    "scrub": "node scripts/scrub-check.mjs",
+    "check": "npm run scrub && npm test"
+  },
+  "files": ["bin/", "src/", "web/", "install/", "docs/", "README.md", "LICENSE"],
+  "keywords": [
+    "ai", "usage", "quota", "dashboard", "self-hosted", "claude-code",
+    "codex", "cursor", "grok", "chatgpt", "rate-limit", "pwa"
+  ],
+  "dependencies": {}
+}

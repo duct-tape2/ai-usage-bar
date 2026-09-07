@@ -1,0 +1,56 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [20, 22, 24]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node --test test/*.test.mjs
+
+  scrub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Refuses to let personal data reach a public commit.
+      - run: node scripts/scrub-check.mjs
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  boots-clean:
+    # The real gate for "runs on someone else's machine": a container with no
+    # accounts, no credentials and no AI tooling must still start and render.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: |
+          export AI_USAGE_BAR_CONFIG_DIR="$RUNNER_TEMP/config"
+          export AI_USAGE_BAR_STATE_DIR="$RUNNER_TEMP/state"
+          export AI_USAGE_BAR_PORT=8791
+          node bin/ai-usage-bar.mjs init
+          node bin/ai-usage-bar.mjs doctor
+          node bin/ai-usage-bar.mjs serve &
+          sleep 5
+          curl -fsS http://127.0.0.1:8791/api/summary > /dev/null
+          curl -fsS http://127.0.0.1:8791/ > /dev/null
+          echo "clean-machine boot OK"

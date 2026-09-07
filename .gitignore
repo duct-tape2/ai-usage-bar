@@ -1,0 +1,14 @@
+node_modules/
+.npm-cache/
+coverage/
+.DS_Store
+*.log
+
+# Runtime data and secrets never live in the repo. See docs/security.md.
+.write-token
+.read-token
+.usage-data.json*
+.chatgpt-*.json
+.watchdog-state.json
+state/
+secrets/
