@@ -92,7 +92,7 @@ function readBody(req) {
   });
 }
 
-export function createServer({ config, manifests, auth, activeIds, scheduler, log }) {
+export function createServer({ config, manifests, auth, activeIds, scheduler, log, snapshotFile }) {
   async function handle(req, res) {
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
     const { pathname } = url;
@@ -129,7 +129,7 @@ export function createServer({ config, manifests, auth, activeIds, scheduler, lo
     const extra = cookie ? { "set-cookie": cookie } : {};
 
     if (pathname === "/api/usage") {
-      const snapshot = await readSnapshot();
+      const snapshot = await readSnapshot(snapshotFile);
       return sendJson(res, {
         ...snapshot,
         providerMeta: Object.fromEntries(manifests
@@ -141,7 +141,7 @@ export function createServer({ config, manifests, auth, activeIds, scheduler, lo
 
     if (pathname === "/api/summary" || pathname === "/api/summary.txt") {
       const lang = resolveLang(url.searchParams.get("lang") || req.headers["accept-language"]);
-      const snapshot = await readSnapshot();
+      const snapshot = await readSnapshot(snapshotFile);
       const summary = await buildSummary({ snapshot, manifests, lang });
       if (pathname.endsWith(".txt")) return send(res, 200, summaryLine(summary));
       const body = JSON.stringify(summary);
@@ -154,7 +154,7 @@ export function createServer({ config, manifests, auth, activeIds, scheduler, lo
     }
 
     if (pathname === "/api/health") {
-      const snapshot = await readSnapshot();
+      const snapshot = await readSnapshot(snapshotFile);
       const health = buildHealth({ snapshot, manifests, activeIds });
       return sendJson(res, health, health.ok ? 200 : 503);
     }

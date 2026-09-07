@@ -8,6 +8,9 @@ if (nodeVersion[0] < 20) {
   process.exit(1);
 }
 
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { ensureDirs, describePaths, CONFIG_FILE } from "../src/core/paths.mjs";
 import { loadConfig, saveConfig, providerEnablement, providerConfig, DEFAULT_CONFIG } from "../src/core/config.mjs";
 import { loadRegistry } from "../src/core/registry.mjs";
@@ -109,7 +112,9 @@ async function cmdServe() {
   const auth = makeAuth({ writeToken, readToken });
 
   const scheduler = isDemo ? null : createScheduler({ manifests: active, config, runProvider, log });
-  const server = createServer({ config, manifests, auth, activeIds, scheduler, log });
+  // Demo data lives in a throwaway file so it can never overwrite a real snapshot.
+  const snapshotFile = isDemo ? join(await mkdtemp(join(tmpdir(), "ai-usage-bar-demo-")), "usage.json") : undefined;
+  const server = createServer({ config, manifests, auth, activeIds, scheduler, log, snapshotFile });
 
   try {
     await listen(server, { host, port });
@@ -127,7 +132,7 @@ async function cmdServe() {
         meters: providerData.meters,
         error: providerData.error,
         capturedAt: providerData.capturedAt,
-      });
+      }, snapshotFile);
     }
   } else {
     scheduler.start();
